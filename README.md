@@ -4,6 +4,8 @@
 
 **Ajouter un disque et étendre la partition système sans interruption de service**
 
+> Guide opérationnel pas à pas — ce dépôt ne contient pas de script automatique.
+
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS-E95420?logo=ubuntu&logoColor=white)
 ![LVM](https://img.shields.io/badge/LVM-Logical_Volume_Manager-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -25,7 +27,7 @@ Le serveur est arrivé à **saturation d'espace disque** (100% sur la partition 
 > **Ne jamais manipuler les partitions d'un serveur en production sans filet de sécurité.**
 
 - Avoir identifié le nom du nouveau disque vierge (ici `/dev/sdb`)
-- **Faire un Snapshot** (point de restauration) de la VM depuis l'hyperviseur avant toute manipulation
+- Disposer d'une **sauvegarde vérifiée** ; un snapshot hyperviseur peut compléter cette protection, mais ne la remplace pas toujours
 
 ---
 
