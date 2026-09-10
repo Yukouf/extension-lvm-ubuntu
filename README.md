@@ -1,10 +1,17 @@
+
+
+<p align="center">
+  <a href="README.md">English</a> &bull;
+  <a href="README_fr.md">Français</a>
+</p>
+
 <div align="center">
 
-# 💾 Extension LVM à chaud sur Ubuntu
+# 💾 Live LVM Extension on Ubuntu
 
-**Ajouter un disque et étendre la partition système sans interruption de service**
+**Add a disk and extend the system partition without service interruption**
 
-> Guide opérationnel pas à pas — ce dépôt ne contient pas de script automatique.
+> Step-by-step operational guide: this repository does not contain an automated script.
 
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS-E95420?logo=ubuntu&logoColor=white)
 ![LVM](https://img.shields.io/badge/LVM-Logical_Volume_Manager-blue)
@@ -14,36 +21,36 @@
 
 ---
 
-## 🎯 Contexte
+## 🎯 Context
 
-Le serveur est arrivé à **saturation d'espace disque** (100% sur la partition racine `/`). Un nouveau disque virtuel vierge a été ajouté à la machine virtuelle depuis l'hyperviseur (vSphere, Proxmox, etc.) **sans l'éteindre**.
+The server reached **disk space saturation** (100% on the root partition `/`). A new blank virtual disk was added to the virtual machine from the hypervisor (vSphere, Proxmox, etc.) **without shutting it down**.
 
-**Objectif :** Fusionner ce nouveau disque avec la partition système existante pour étendre l'espace de stockage **à chaud** (sans interruption de service), en utilisant la technologie **LVM** (Logical Volume Manager).
-
----
-
-## ⚠️ Prérequis obligatoires
-
-> **Ne jamais manipuler les partitions d'un serveur en production sans filet de sécurité.**
-
-- Avoir identifié le nom du nouveau disque vierge (ici `/dev/sdb`)
-- Disposer d'une **sauvegarde vérifiée** ; un snapshot hyperviseur peut compléter cette protection, mais ne la remplace pas toujours
+**Goal:** Merge this new disk with the existing system partition in order to extend the storage space **live** (without service interruption), using **LVM** (Logical Volume Manager) technology.
 
 ---
 
-## 📋 Procédure
+## ⚠️ Mandatory prerequisites
 
-### Étape 1 — Vérification de l'état initial
+> **Never handle the partitions of a production server without a safety net.**
 
-Avant toute manipulation, on vérifie l'état critique du disque et le nom exact de la partition à agrandir.
+- Have identified the name of the new blank disk (here `/dev/sdb`)
+- Have a **verified backup**; a hypervisor snapshot can complement this protection, but does not always replace it
+
+---
+
+## 📋 Procedure
+
+### Step 1: Checking the initial state
+
+Before any handling, the critical state of the disk and the exact name of the partition to be enlarged are checked.
 
 ```bash
 df -h
 ```
 
-Repérer la ligne montée sur `/` (ex: `/dev/mapper/ubuntu--vg-ubuntu--lv`) et son taux d'utilisation.
+Locate the line mounted on `/` (e.g. `/dev/mapper/ubuntu--vg-ubuntu--lv`) and its usage rate.
 
-**Exemple — Avant (disque saturé) :**
+**Example: Before (saturated disk):**
 ```
 Filesystem                         Size  Used Avail Use% Mounted on
 /dev/mapper/ubuntu--vg-ubuntu--lv   97G   92G     0 100% /
@@ -51,92 +58,92 @@ Filesystem                         Size  Used Avail Use% Mounted on
 
 ---
 
-### Étape 2 — Préparation du nouveau disque (Physical Volume)
+### Step 2: Preparing the new disk (Physical Volume)
 
-On déclare le nouveau disque vierge (`sdb`) au gestionnaire LVM pour qu'il le reconnaisse comme un composant utilisable.
+The new blank disk (`sdb`) is declared to the LVM manager so that it recognizes it as a usable component.
 
 ```bash
 sudo pvcreate /dev/sdb
 ```
 
-> ✅ Résultat attendu : `Physical volume "/dev/sdb" successfully created.`
+> ✅ Expected result: `Physical volume "/dev/sdb" successfully created.`
 
 ---
 
-### Étape 3 — Ajout au groupe de volumes (Volume Group)
+### Step 3: Adding to the volume group (Volume Group)
 
-On ajoute ce nouveau disque au groupe de stockage principal du serveur (ici `ubuntu-vg`).
+This new disk is added to the server's main storage group (here `ubuntu-vg`).
 
 ```bash
 sudo vgextend ubuntu-vg /dev/sdb
 ```
 
-> ✅ Résultat attendu : `Volume group "ubuntu-vg" successfully extended.`
+> ✅ Expected result: `Volume group "ubuntu-vg" successfully extended.`
 
-**💡 Comment trouver le nom du Volume Group ?**
+**💡 How to find the Volume Group name?**
 ```bash
 sudo vgdisplay | grep "VG Name"
 ```
 
 ---
 
-### Étape 4 — Extension de la partition (Logical Volume)
+### Step 4: Extending the partition (Logical Volume)
 
-Maintenant que le groupe a de l'espace libre, on étire la partition logique système pour qu'elle consomme 100% du nouvel espace disponible.
+Now that the group has free space, the logical system partition is stretched so that it consumes 100% of the new available space.
 
 ```bash
 sudo lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
 ```
 
-> ✅ Résultat attendu : `Logical volume ubuntu-vg/ubuntu-lv successfully resized.`
+> ✅ Expected result: `Logical volume ubuntu-vg/ubuntu-lv successfully resized.`
 
 ---
 
-### Étape 5 — Redimensionnement du système de fichiers
+### Step 5: Resizing the filesystem
 
-LVM a agrandi la "boîte", mais le système d'exploitation (`ext4`) ne le sait pas encore. On force le système de fichiers à s'étaler dans tout le nouvel espace disponible. C'est la seule étape qui prend quelques secondes.
+LVM has enlarged the "box", but the operating system (`ext4`) does not know it yet. The filesystem is forced to spread across all the new available space. This is the only step that takes a few seconds.
 
 ```bash
 sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 ```
 
-> ✅ Résultat attendu : `The filesystem on [...] is now XXXXX blocks long.`
+> ✅ Expected result: `The filesystem on [...] is now XXXXX blocks long.`
 
-**⚠️ Si le système de fichiers est `xfs` au lieu de `ext4` :**
+**⚠️ If the filesystem is `xfs` instead of `ext4`:**
 ```bash
 sudo xfs_growfs /
 ```
 
 ---
 
-### Étape 6 — Validation finale
+### Step 6: Final validation
 
-On vérifie que l'espace a bien été ajouté au système à chaud.
+The space is checked to confirm that it was indeed added to the system live.
 
 ```bash
 df -h
 ```
 
-**Exemple — Après (espace étendu) :**
+**Example: After (extended space):**
 ```
 Filesystem                         Size  Used Avail Use% Mounted on
 /dev/mapper/ubuntu--vg-ubuntu--lv  294G   87G  195G  31% /
 ```
 
-Le pourcentage d'utilisation a drastiquement chuté, et l'espace total a augmenté. ✅
+The usage percentage has dropped drastically, and the total space has increased. ✅
 
 ---
 
-## 🏗️ Comment ça marche ?
+## 🏗️ How does it work?
 
 ```mermaid
 flowchart LR
-    subgraph Avant ["❌ Avant"]
-        D1[sda\n97 GB\nPLEIN]
-        D2[sdb\n200 GB\nVIERGE]
+    subgraph Before ["❌ Before"]
+        D1[sda\n97 GB\nFULL]
+        D2[sdb\n200 GB\nBLANK]
     end
 
-    subgraph Après ["✅ Après"]
+    subgraph After ["✅ After"]
         LVM[LVM\nubuntu-vg]
         P[Partition /\n294 GB\n31%]
         LVM --> P
@@ -151,51 +158,51 @@ flowchart LR
     style P fill:#2e7d32,color:#fff
 ```
 
-**LVM en résumé :**
-- **Physical Volume (PV)** = un disque physique déclaré à LVM
-- **Volume Group (VG)** = un pool de stockage regroupant un ou plusieurs PV
-- **Logical Volume (LV)** = une partition virtuelle taillée dans le VG
+**LVM in a nutshell:**
+- **Physical Volume (PV)** = a physical disk declared to LVM
+- **Volume Group (VG)** = a storage pool grouping one or more PVs
+- **Logical Volume (LV)** = a virtual partition carved out of the VG
 
-L'avantage : on peut ajouter des disques au VG et étendre le LV **à chaud**, sans démonter ni reformater.
+The advantage: disks can be added to the VG and the LV extended **live**, without unmounting or reformatting.
 
 ---
 
-## 🔁 Récapitulatif des commandes
+## 🔁 Command summary
 
 ```bash
-# 1. Vérifier l'état
+# 1. Check the state
 df -h
 
-# 2. Préparer le nouveau disque
+# 2. Prepare the new disk
 sudo pvcreate /dev/sdb
 
-# 3. Ajouter au groupe de volumes
+# 3. Add to the volume group
 sudo vgextend ubuntu-vg /dev/sdb
 
-# 4. Étendre la partition
+# 4. Extend the partition
 sudo lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
 
-# 5. Redimensionner le système de fichiers
+# 5. Resize the filesystem
 sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 
-# 6. Vérifier
+# 6. Verify
 df -h
 ```
 
 ---
 
-## 🐛 Dépannage
+## 🐛 Troubleshooting
 
-| Problème | Solution |
+| Issue | Solution |
 |---|---|
-| `No such device /dev/sdb` | Le disque n'a pas été détecté. Rescanner : `echo "- - -" \| sudo tee /sys/class/scsi_host/host*/scan` |
-| `Physical volume already exists` | Le disque est déjà initialisé. Vérifier avec `sudo pvs` |
-| `Volume group not found` | Vérifier le nom exact : `sudo vgdisplay \| grep "VG Name"` |
-| `resize2fs: Bad magic number` | Le filesystem est probablement `xfs`, utiliser `sudo xfs_growfs /` |
-| Espace non mis à jour après resize2fs | Vérifier que le LV a bien été étendu : `sudo lvs` |
+| `No such device /dev/sdb` | The disk was not detected. Rescan: `echo "- - -" \| sudo tee /sys/class/scsi_host/host*/scan` |
+| `Physical volume already exists` | The disk is already initialized. Check with `sudo pvs` |
+| `Volume group not found` | Check the exact name: `sudo vgdisplay \| grep "VG Name"` |
+| `resize2fs: Bad magic number` | The filesystem is probably `xfs`, use `sudo xfs_growfs /` |
+| Space not updated after resize2fs | Check that the LV was indeed extended: `sudo lvs` |
 
 ---
 
-## 📄 Licence
+## 📄 License
 
 MIT
