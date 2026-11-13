@@ -11,7 +11,7 @@
 
 **Ajouter un disque et étendre la partition système sans interruption de service**
 
-> Guide opérationnel pas à pas — ce dépôt ne contient pas de script automatique.
+> Guide pas à pas. Ce dépôt ne contient pas de script automatique.
 
 ![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04_LTS-E95420?logo=ubuntu&logoColor=white)
 ![LVM](https://img.shields.io/badge/LVM-Logical_Volume_Manager-blue)
@@ -40,7 +40,7 @@ Le serveur est arrivé à **saturation d'espace disque** (100% sur la partition 
 
 ## 📋 Procédure
 
-### Étape 1 — Vérification de l'état initial
+### Étape 1 : Vérification de l'état initial
 
 Avant toute manipulation, on vérifie l'état critique du disque et le nom exact de la partition à agrandir.
 
@@ -50,7 +50,7 @@ df -h
 
 Repérer la ligne montée sur `/` (ex: `/dev/mapper/ubuntu--vg-ubuntu--lv`) et son taux d'utilisation.
 
-**Exemple — Avant (disque saturé) :**
+**Exemple : Avant (disque saturé) :**
 ```
 Filesystem                         Size  Used Avail Use% Mounted on
 /dev/mapper/ubuntu--vg-ubuntu--lv   97G   92G     0 100% /
@@ -58,7 +58,7 @@ Filesystem                         Size  Used Avail Use% Mounted on
 
 ---
 
-### Étape 2 — Préparation du nouveau disque (Physical Volume)
+### Étape 2 : Préparation du nouveau disque (Physical Volume)
 
 On déclare le nouveau disque vierge (`sdb`) au gestionnaire LVM pour qu'il le reconnaisse comme un composant utilisable.
 
@@ -70,7 +70,7 @@ sudo pvcreate /dev/sdb
 
 ---
 
-### Étape 3 — Ajout au groupe de volumes (Volume Group)
+### Étape 3 : Ajout au groupe de volumes (Volume Group)
 
 On ajoute ce nouveau disque au groupe de stockage principal du serveur (ici `ubuntu-vg`).
 
@@ -87,7 +87,7 @@ sudo vgdisplay | grep "VG Name"
 
 ---
 
-### Étape 4 — Extension de la partition (Logical Volume)
+### Étape 4 : Extension de la partition (Logical Volume)
 
 Maintenant que le groupe a de l'espace libre, on étire la partition logique système pour qu'elle consomme 100% du nouvel espace disponible.
 
@@ -99,7 +99,7 @@ sudo lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
 
 ---
 
-### Étape 5 — Redimensionnement du système de fichiers
+### Étape 5 : Redimensionnement du système de fichiers
 
 LVM a agrandi la "boîte", mais le système d'exploitation (`ext4`) ne le sait pas encore. On force le système de fichiers à s'étaler dans tout le nouvel espace disponible. C'est la seule étape qui prend quelques secondes.
 
@@ -116,7 +116,7 @@ sudo xfs_growfs /
 
 ---
 
-### Étape 6 — Validation finale
+### Étape 6 : Validation finale
 
 On vérifie que l'espace a bien été ajouté au système à chaud.
 
@@ -124,7 +124,7 @@ On vérifie que l'espace a bien été ajouté au système à chaud.
 df -h
 ```
 
-**Exemple — Après (espace étendu) :**
+**Exemple : Après (espace étendu) :**
 ```
 Filesystem                         Size  Used Avail Use% Mounted on
 /dev/mapper/ubuntu--vg-ubuntu--lv  294G   87G  195G  31% /
